@@ -1,0 +1,160 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>Prob Lines</title>
+        <style type="text/css">
+
+            div#divCanvasContainer{
+                display:inline;
+            }
+
+            div#divContainer{
+                position:relative;
+                float:right;
+            }
+
+            canvas{
+                border:1px solid #000;
+            }
+            label[for="ffRadius"]{
+                margin-right:18px;
+            }
+            label[for="ffNumLines"]{
+                margin-right:0px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="divCanvasContainer">
+            <canvas id="myCanvas" width="500" height="500">Your browser does not support the canvas tag.</canvas>
+        </div>
+
+        <div id="divContainer">
+            <form id="fForm" name="fForm" method="post" action="">
+                <fieldset>
+                    <legend>Variables</legend>
+                    <div>
+                        <label for="ffRadius">Radius:</label>
+                        <input type="text" id="ffRadius" name="ffRadius" value="10"/>
+                    </div>
+                    <div>
+                        <label for="ffNumLines"># of toothpicks:</label>
+                        <input type="text" id="ffNumLines" name="ffNumLines" value="1000"/>
+                    </div>
+                    <div>
+                        <label for="ffNumGridColumns"># of Columns:</label>
+                        <input type="text" id="ffNumGridColumns" name="ffNumGridColumns" value="8"/>
+                    </div>
+                    <div>
+                        <label for="ffNumGridRows"># of Rows:</label>
+                        <input type="text" id="ffNumGridRows" name="ffNumGridRows" value="8"/>
+                    </div>
+                    <div>
+                        <label for="ffGridWidth">Grid width:</label>
+                        <input type="text" id="ffGridWidth" name="ffGridWidth" value="500"/>
+                    </div>
+                    <div>
+                        <label for="ffGridHeight">Grid height:</label>
+                        <input type="text" id="ffGridHeight" name="ffGridHeight" value="500"/>
+                    </div>
+                    <div>
+                        <label for="ffGridPosX">Grid pos X:</label>
+                        <input type="text" id="ffGridPosX" name="ffGridPosX" maxLength="4" size="3" value="0"/>
+                        <input type="text" id="ffGridMouseX" name="ffGridMouseX" value="0" maxLength="4" size="3" readOnly="readOnly"/>
+                        <input type="text" id="ffGridPMouseX" name="ffGridPMouseX" value="0" maxLength="4" size="3" readOnly="readOnly"/>
+                    </div>
+                    <div>
+                        <label for="ffGridPosY">Grid pos Y:</label>
+                        <input type="text" id="ffGridPosY" name="ffGridPosY" maxLength="4" size="3" value="0"/>
+                        <input type="text" id="ffGridMouseY" name="ffGridMouseY" value="0" maxLength="4" size="3" readOnly="readOnly"/>
+                        <input type="text" id="ffGridPMouseY" name="ffGridPMouseY" value="0" maxLength="4" size="3" readOnly="readOnly"/>
+                    </div>
+                    <div>
+                        <label for="ffCanvasWidth">Canvas width:</label>
+                        <input type="text" id="ffCanvasWidth" name="ffCanvasWidth" value="500"/>
+                    </div>
+                    <div>
+                        <label for="ffCanvasHeight">Canvas height:</label>
+                        <input type="text" id="ffCanvasHeight" name="ffCanvasHeight" value="500"/>
+                    </div>
+                    <div>
+                        <input type="button" id="ffSize" name="ffSize" value="Set Size"/>
+                        <input type="button" id="ffSet" name="ffSet" value="Run"/>
+                        <input type="button" id="ffClear" name="ffClear" value="Clear"/>
+                    </div>
+                    <div>
+                        <textarea id="ffOutput" name="ffOutput" cols="50" rows="10"></textarea>
+                    </div>
+                </fieldset>
+            </form> 
+        </div>
+
+        <script type="text/javascript" src="js/prototype.js"></script>
+        <script type="text/javascript" src="js/jquery-1.7.2.min.js"></script>
+        <script type="text/javascript" src="js/toothPickSpill.js"></script>
+        <script type="text/javascript" src="js/toothPickSpillDrawer.js"></script>
+        <script type="text/javascript" src="js/tarah.js"></script>
+        <script type="text/javascript">
+            "use strict";//Just don't cross the streams!!
+            var $j = jQuery.noConflict();
+            if (typeof(window.$j) === 'undefined') { window.$j = jQuery; }
+
+            //------------------------------------------------
+            // Generates a random number using Math.random()
+            // in the given range between min and max.
+            // @param: min - Integer; lower bounds
+            // @param: max - Integer; upper bounds
+            // @return: a random number between min and max
+            //------------------------------------------------
+            Math.rndRange = function ( min, max ){
+                if( isNaN(min) || isNaN(max) ) return NaN;
+                return Math.random()*((max-min)+1)+min;
+            }
+
+            $j(document).ready(function(){
+                var formAndFormFields = $j('input, textarea, form')
+
+                if( Object.defineProperty ){//Standard way new browsers 
+                    //Getters and setters for the control panel of the grapher and the form
+                    Object.defineProperty(tarah, 'formVars', { value:new Object() });
+
+                    formAndFormFields.each( function(){
+                        var $elm = $j(this);
+                        Object.defineProperty(tarah.formVars, $elm.attr('id'), { value:$elm.attr('id') });
+                    });
+                }else{
+                    formAndFormFields.each( function(){
+                        var $elm = $j(this);
+                        tarah.formVars[ $elm.attr('id') ] = $elm.attr('id');
+                    });
+                } 
+                $j('#'+tarah.formVars.fForm).submit( tarah.onSubmit );
+                $j('#'+tarah.formVars.ffSize).click( tarah.onResize );
+                $j('#'+tarah.formVars.ffSet).click( tarah.onSet );
+                $j('#'+tarah.formVars.ffClear).click( tarah.clearCanvas );
+                $j('#'+tarah.oCanvas).mouseenter( function(e){
+                    var c = document.getElementById("myCanvas");
+                    $j(this).mousemove( function(e){
+                        var coor = tarah.mouseCoord(e);
+                        coor.x -= c.offsetLeft + 1;//+1 for border
+                        coor.y -= c.offsetTop + 1;
+                        $j('#'+ tarah.formVars.ffGridMouseX).val(coor.x);
+                        $j('#'+ tarah.formVars.ffGridMouseY).val(coor.y);
+                        try{
+                            $j('#'+ tarah.formVars.ffGridPMouseX).val(tarah.aGrids[0].board.xtoGridCellX(coor.x));
+                            $j('#'+ tarah.formVars.ffGridPMouseY).val(tarah.aGrids[0].board.ytoGridCellY(coor.y));
+                        }catch(e){}
+                    });
+                });
+                $j('#'+tarah.oCanvas).click( function(e){
+                    var coor = tarah.mouseCoord(e);
+                    $j('#'+ tarah.formVars.ffGridPosX).val(coor.x);
+                    $j('#'+ tarah.formVars.ffGridPosY).val(coor.y);
+                });
+                $j('#'+tarah.oCanvas).mouseleave( function(e){
+                    $j(this).off( 'mousemove' );
+                });
+            });
+        </script>
+    </body>
+</html>
